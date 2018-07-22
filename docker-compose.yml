@@ -1,0 +1,17 @@
+version: '3'
+services:
+  ubuntu:
+    image: "ubuntu:18.04"
+    volumes:
+      - "./bin/linux:/command"
+    entrypoint: /command/vmstat-metrics
+  mysql:
+    image: "mysql:5.7"
+    environment:
+      - MYSQL_ROOT_PASSWORD=vmstat
+      - MYSQL_USER=vmstat
+      - MYSQL_PASSWORD=vmstat
+      - MYSQL_DATABASE=vmstat
+    volumes:
+      - "./scripts/mysql/custom.cnf:/etc/mysql/conf.d/custom.cnf"
+      - "./scripts/mysql/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d"
