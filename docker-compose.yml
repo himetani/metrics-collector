@@ -4,7 +4,8 @@ services:
     image: "ubuntu:18.04"
     volumes:
       - "./bin/linux:/command"
-    entrypoint: /command/vmstat-metrics
+    entrypoint: /command/metrics-collector
+        #entrypoint: tail -f /dev/null
   mysql:
     image: "mysql:5.7"
     environment:

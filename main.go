@@ -2,17 +2,14 @@ package main
 
 import (
 	"fmt"
-	"time"
 )
 
 func main() {
-	ticker := time.NewTicker(1000 * time.Millisecond)
-	go func() {
-		for t := range ticker.C {
-			fmt.Println("Tick at", t)
-		}
-	}()
+	vmstatCh := genVmstat()
 
-	time.Sleep(1600 * time.Second)
-	ticker.Stop()
+	for i := 0; i < 10; i++ {
+		fmt.Println(<-vmstatCh)
+	}
+
+	close(vmstatCh)
 }
