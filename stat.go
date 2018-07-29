@@ -12,7 +12,9 @@ import (
 
 const darwinVmstatMock = "2  0      0 411848  23620 1379292    0    0     1     3   39   84  0  0 100  0  0"
 
-type vmstat struct {
+var nowFn = time.Now
+
+type metrics struct {
 	datetime      time.Time
 	running       uint64
 	blocking      uint64
@@ -33,7 +35,7 @@ type vmstat struct {
 	cpuSteal      uint64
 }
 
-func NewVmstat(line string) (*vmstat, error) {
+func convert(line string) (*metrics, error) {
 	tmp := strings.Split(line, " ")
 	lines := []string{}
 	for _, v := range tmp {
@@ -64,8 +66,8 @@ func NewVmstat(line string) (*vmstat, error) {
 	l15, _ := strconv.ParseUint(lines[15], 10, 32)
 	l16, _ := strconv.ParseUint(lines[16], 10, 32)
 
-	return &vmstat{
-		datetime:      time.Now(),
+	return &metrics{
+		datetime:      nowFn(),
 		running:       l0,
 		blocking:      l1,
 		swapped:       l2,
@@ -86,8 +88,8 @@ func NewVmstat(line string) (*vmstat, error) {
 	}, nil
 }
 
-func genVmstat() chan vmstat {
-	ch := make(chan vmstat)
+func genVmstat() chan metrics {
+	ch := make(chan metrics)
 
 	switch runtime.GOOS {
 	case "linux":
@@ -107,7 +109,7 @@ func genVmstat() chan vmstat {
 					continue
 				}
 
-				vmstat, err := NewVmstat(line)
+				vmstat, err := convert(line)
 				if err != nil {
 					panic(err)
 				}
@@ -118,7 +120,7 @@ func genVmstat() chan vmstat {
 	case "darwin":
 		go func() {
 			for {
-				vmstat, err := NewVmstat(darwinVmstatMock)
+				vmstat, err := convert(darwinVmstatMock)
 				if err != nil {
 					panic(err)
 				}
