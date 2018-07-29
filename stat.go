@@ -2,17 +2,41 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 const darwinVmstatMock = "2  0      0 411848  23620 1379292    0    0     1     3   39   84  0  0 100  0  0"
 
 var nowFn = time.Now
+
+type Vmstat struct {
+	wg     sync.WaitGroup
+	db     DB
+	ticker int // second
+}
+
+func (v *Vmstat) Run(ctx context.Context) error {
+	vmstatCh := v.execVmstat(ctx)
+
+	for {
+		select {
+		case m := <-vmstatCh:
+			v.db.Insert(m)
+		case <-ctx.Done():
+			v.wg.Done()
+			return nil
+		}
+	}
+
+	return nil
+}
 
 type metrics struct {
 	datetime      time.Time
@@ -88,12 +112,12 @@ func convert(line string) (*metrics, error) {
 	}, nil
 }
 
-func genVmstat() chan metrics {
+func (v *Vmstat) execVmstat(ctx context.Context) chan metrics {
 	ch := make(chan metrics)
 
 	switch runtime.GOOS {
 	case "linux":
-		cmd := exec.Command("vmstat", "-n", "1")
+		cmd := exec.Command("vmstat", "-n", strconv.Itoa(v.ticker))
 		stdout, _ := cmd.StdoutPipe()
 		cmd.Start()
 
@@ -119,12 +143,18 @@ func genVmstat() chan metrics {
 		}()
 	case "darwin":
 		go func() {
+			ticker := time.NewTicker(time.Duration(v.ticker) * time.Second)
 			for {
-				vmstat, err := convert(darwinVmstatMock)
-				if err != nil {
-					panic(err)
+				select {
+				case <-ticker.C:
+					vmstat, err := convert(darwinVmstatMock)
+					if err != nil {
+						panic(err)
+					}
+					ch <- *vmstat
+				case <-ctx.Done():
+					return
 				}
-				ch <- *vmstat
 			}
 		}()
 	default:

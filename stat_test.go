@@ -1,6 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
 	"reflect"
 	"testing"
 	"time"
@@ -22,6 +26,30 @@ func TestConvert(t *testing.T) {
 
 	if !reflect.DeepEqual(actual, expected) {
 		t.Errorf("TestConvert: expected = %+v, but got = %+v", expected, actual)
+	}
+}
+
+func TestRun(t *testing.T) {
+	buf := new(bytes.Buffer)
+	mock := &dbMock{w: buf}
+	vmstat := &Vmstat{
+		db:     mock,
+		ticker: 1,
+	}
+
+	vmstat.wg.Add(1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+	defer cancel()
+
+	vmstat.Run(ctx)
+	vmstat.wg.Wait()
+
+	actual := buf.String()
+	expected := dumpedMetrics()
+
+	if actual != expected {
+		t.Errorf("Test Run: expected = %s, but got = %s", expected, actual)
 	}
 }
 
@@ -47,4 +75,17 @@ func helper() *metrics {
 		cpuSteal:      0,
 	}
 
+}
+
+func dumpedMetrics() string {
+	return fmt.Sprintf("%+v", *helper())
+}
+
+type dbMock struct {
+	w io.Writer
+}
+
+func (d *dbMock) Insert(met metrics) error {
+	fmt.Fprintf(d.w, "%+v", met)
+	return nil
 }
