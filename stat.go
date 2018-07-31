@@ -23,7 +23,7 @@ type Vmstat struct {
 }
 
 func (v *Vmstat) Run(ctx context.Context) error {
-	vmstatCh := v.execVmstat(ctx)
+	vmstatCh := v.exec(ctx)
 
 	for {
 		select {
@@ -112,7 +112,7 @@ func convert(line string) (*metrics, error) {
 	}, nil
 }
 
-func (v *Vmstat) execVmstat(ctx context.Context) chan metrics {
+func (v *Vmstat) exec(ctx context.Context) chan metrics {
 	ch := make(chan metrics)
 
 	switch runtime.GOOS {
