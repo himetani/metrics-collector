@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -115,43 +117,22 @@ func convert(line string) (*metrics, error) {
 func (v *Vmstat) exec(ctx context.Context) chan metrics {
 	ch := make(chan metrics)
 
+	var stdout io.Reader
 	switch runtime.GOOS {
 	case "linux":
 		cmd := exec.Command("vmstat", "-n", strconv.Itoa(v.ticker))
-		stdout, _ := cmd.StdoutPipe()
+		stdout, _ = cmd.StdoutPipe()
 		cmd.Start()
-
-		go func() {
-			scanner := bufio.NewScanner(stdout)
-			for scanner.Scan() {
-				line := scanner.Text()
-				if strings.Contains(line, "procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----") {
-					continue
-				}
-
-				if strings.Contains(line, "r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st") {
-					continue
-				}
-
-				vmstat, err := convert(line)
-				if err != nil {
-					panic(err)
-				}
-				ch <- *vmstat
-
-			}
-		}()
 	case "darwin":
+		var w *io.PipeWriter
+		stdout, w = io.Pipe()
+		ticker := time.NewTicker(time.Duration(v.ticker) * time.Second)
+
 		go func() {
-			ticker := time.NewTicker(time.Duration(v.ticker) * time.Second)
 			for {
 				select {
 				case <-ticker.C:
-					vmstat, err := convert(darwinVmstatMock)
-					if err != nil {
-						panic(err)
-					}
-					ch <- *vmstat
+					fmt.Fprintf(w, "%s\n", darwinVmstatMock)
 				case <-ctx.Done():
 					return
 				}
@@ -160,6 +141,27 @@ func (v *Vmstat) exec(ctx context.Context) chan metrics {
 	default:
 		panic("Unsupported OS")
 	}
+
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.Contains(line, "procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----") {
+				continue
+			}
+
+			if strings.Contains(line, "r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st") {
+				continue
+			}
+
+			vmstat, err := convert(line)
+			if err != nil {
+				panic(err)
+			}
+			ch <- *vmstat
+
+		}
+	}()
 
 	return ch
 }
