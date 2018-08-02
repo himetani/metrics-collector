@@ -32,6 +32,7 @@ func (v *Vmstat) Run(ctx context.Context) error {
 		case m := <-vmstatCh:
 			v.db.Insert(m)
 		case <-ctx.Done():
+			fmt.Println("task.Run has been ended")
 			v.wg.Done()
 			return nil
 		}

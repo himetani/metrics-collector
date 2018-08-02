@@ -30,3 +30,7 @@ clean:
 
 test: 
 	go test -cover -v $(REPOHOME)/...
+
+run:
+	@echo "=> find . -type f -name '*go' | grep -v test | xargs go run"
+	@find . -type f -name '*go' | grep -v test | xargs go run

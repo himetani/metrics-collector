@@ -1,15 +1,36 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
-	vmstatCh := genVmstat()
+	c := make(chan os.Signal)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGHUP)
 
-	for i := 0; i < 10; i++ {
-		fmt.Println(<-vmstatCh)
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		select {
+		case sig := <-c:
+			fmt.Printf("Got %s signal. Aborting...\n", sig)
+			cancel()
+		}
+	}()
+
+	vmstat := &Vmstat{
+		db:     &Mysql{},
+		ticker: 1,
 	}
+	vmstat.wg.Add(1)
 
-	close(vmstatCh)
+	vmstat.Run(ctx)
+
+	vmstat.wg.Wait()
+
+	fmt.Println("Process ended")
+	os.Exit(1)
 }
