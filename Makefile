@@ -34,3 +34,7 @@ test:
 run:
 	@echo "=> find . -type f -name '*go' | grep -v test | xargs go run"
 	@find . -type f -name '*go' | grep -v test | xargs go run
+
+exec:
+	@echo "=> ./bin/metrics-collector"
+	@./bin/metrics-collector
