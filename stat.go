@@ -14,9 +14,12 @@ import (
 	"time"
 )
 
-const darwinVmstatMock = "2  0      0 411848  23620 1379292    0    0     1     3   39   84  0  0 100  0  0"
+const vmstatMock = "2  0      0 411848  23620 1379292    0    0     1     3   39   84  0  0 100  0  0"
 
-var nowFn = time.Now
+var (
+	nowFn    = time.Now
+	prodMode = true
+)
 
 type Vmstat struct {
 	wg     sync.WaitGroup
@@ -25,7 +28,10 @@ type Vmstat struct {
 }
 
 func (v *Vmstat) Run(ctx context.Context) error {
-	vmstatCh := v.exec(ctx)
+	vmstatCh, err := v.exec(ctx)
+	if err != nil {
+		return err
+	}
 
 	for {
 		select {
@@ -115,16 +121,15 @@ func convert(line string) (*metrics, error) {
 	}, nil
 }
 
-func (v *Vmstat) exec(ctx context.Context) chan metrics {
+func (v *Vmstat) exec(ctx context.Context) (chan metrics, error) {
 	ch := make(chan metrics)
 
 	var stdout io.Reader
-	switch runtime.GOOS {
-	case "linux":
+	if runtime.GOOS == "linux" && prodMode {
 		cmd := exec.Command("vmstat", "-n", strconv.Itoa(v.ticker))
 		stdout, _ = cmd.StdoutPipe()
 		cmd.Start()
-	case "darwin":
+	} else {
 		var w *io.PipeWriter
 		stdout, w = io.Pipe()
 		ticker := time.NewTicker(time.Duration(v.ticker) * time.Second)
@@ -133,14 +138,12 @@ func (v *Vmstat) exec(ctx context.Context) chan metrics {
 			for {
 				select {
 				case <-ticker.C:
-					fmt.Fprintf(w, "%s\n", darwinVmstatMock)
+					fmt.Fprintf(w, "%s\n", vmstatMock)
 				case <-ctx.Done():
 					return
 				}
 			}
 		}()
-	default:
-		panic("Unsupported OS")
 	}
 
 	go func() {
@@ -164,5 +167,5 @@ func (v *Vmstat) exec(ctx context.Context) chan metrics {
 		}
 	}()
 
-	return ch
+	return ch, nil
 }

@@ -30,6 +30,8 @@ func TestConvert(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
+	prodMode = false
+
 	buf := new(bytes.Buffer)
 	mock := &dbMock{w: buf}
 	vmstat := &Vmstat{
@@ -55,24 +57,24 @@ func TestRun(t *testing.T) {
 
 func helper() *metrics {
 	return &metrics{
-		datetime:      nowFn(),
-		running:       2,
-		blocking:      0,
-		swapped:       0,
-		free:          411848,
-		buffer:        23620,
-		cache:         1379292,
-		swapIn:        0,
-		swapOut:       0,
-		blockIn:       1,
-		blockOut:      3,
-		interapt:      39,
-		contextSwitch: 84,
-		cpuUser:       0,
-		cpuSystem:     0,
-		cpuIdle:       100,
-		cpuIowait:     0,
-		cpuSteal:      0,
+		Datetime:      nowFn(),
+		Running:       2,
+		Blocking:      0,
+		Swapped:       0,
+		Free:          411848,
+		Buffer:        23620,
+		Cache:         1379292,
+		SwapIn:        0,
+		SwapOut:       0,
+		BlockIn:       1,
+		BlockOut:      3,
+		Interapt:      39,
+		ContextSwitch: 84,
+		CpuUser:       0,
+		CpuSystem:     0,
+		CpuIdle:       100,
+		CpuIowait:     0,
+		CpuSteal:      0,
 	}
 
 }
