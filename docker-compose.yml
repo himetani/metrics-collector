@@ -5,7 +5,6 @@ services:
     volumes:
       - "./bin/linux:/command"
     entrypoint: /command/metrics-collector
-        #entrypoint: tail -f /dev/null
   mysql:
     image: "mysql:5.7"
     environment:

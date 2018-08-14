@@ -31,6 +31,5 @@ func main() {
 
 	vmstat.wg.Wait()
 
-	fmt.Println("Process ended")
 	os.Exit(1)
 }
