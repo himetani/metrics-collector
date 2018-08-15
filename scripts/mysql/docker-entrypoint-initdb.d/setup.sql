@@ -1,6 +1,6 @@
-DROP TABLE IF EXISTS vmstat.vmstat;
-CREATE TABLE vmstat.vmstat (
-	dt datetime NOT NULL,
+DROP TABLE IF EXISTS vmstat.metrics;
+CREATE TABLE vmstat.metrics (
+	datetime datetime,
 	running int unsigned NOT NULL,
 	blocking int unsigned NOT NULL,
 	swapped int unsigned NOT NULL,
@@ -18,5 +18,5 @@ CREATE TABLE vmstat.vmstat (
 	cpu_idle tinyint unsigned NOT NULL,
 	cpu_iowait tinyint unsigned NOT NULL,
 	cpu_steal tinyint unsigned NOT NULL,
-	PRIMARY KEY(dt)
+	PRIMARY KEY(datetime)
 );

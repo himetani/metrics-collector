@@ -2,38 +2,73 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
+	"fmt"
+	"io"
 	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
-const darwinVmstatMock = "2  0      0 411848  23620 1379292    0    0     1     3   39   84  0  0 100  0  0"
+const vmstatMock = "2  0      0 411848  23620 1379292    0    0     1     3   39   84  0  0 100  0  0"
 
-type vmstat struct {
-	datetime      time.Time
-	running       uint64
-	blocking      uint64
-	swapped       uint64
-	free          uint64
-	buffer        uint64
-	cache         uint64
-	swapIn        uint64
-	swapOut       uint64
-	blockIn       uint64
-	blockOut      uint64
-	interapt      uint64
-	contextSwitch uint64
-	cpuUser       uint64
-	cpuSystem     uint64
-	cpuIdle       uint64
-	cpuIowait     uint64
-	cpuSteal      uint64
+var (
+	nowFn    = time.Now
+	prodMode = true
+)
+
+type Vmstat struct {
+	wg     sync.WaitGroup
+	db     DB
+	ticker int // second
 }
 
-func NewVmstat(line string) (*vmstat, error) {
+func (v *Vmstat) Run(ctx context.Context) error {
+	vmstatCh, err := v.exec(ctx)
+	if err != nil {
+		return err
+	}
+
+	for {
+		select {
+		case m := <-vmstatCh:
+			v.db.Insert(m)
+		case <-ctx.Done():
+			fmt.Println("task.Run has been ended")
+			v.wg.Done()
+			return nil
+		}
+	}
+
+	return nil
+}
+
+type metrics struct {
+	Datetime      time.Time
+	Running       uint64
+	Blocking      uint64
+	Swapped       uint64
+	Free          uint64
+	Buffer        uint64
+	Cache         uint64
+	SwapIn        uint64
+	SwapOut       uint64
+	BlockIn       uint64
+	BlockOut      uint64
+	Interapt      uint64
+	ContextSwitch uint64
+	CpuUser       uint64
+	CpuSystem     uint64
+	CpuIdle       uint64
+	CpuIowait     uint64
+	CpuSteal      uint64
+}
+
+func convert(line string) (*metrics, error) {
 	tmp := strings.Split(line, " ")
 	lines := []string{}
 	for _, v := range tmp {
@@ -64,70 +99,73 @@ func NewVmstat(line string) (*vmstat, error) {
 	l15, _ := strconv.ParseUint(lines[15], 10, 32)
 	l16, _ := strconv.ParseUint(lines[16], 10, 32)
 
-	return &vmstat{
-		datetime:      time.Now(),
-		running:       l0,
-		blocking:      l1,
-		swapped:       l2,
-		free:          l3,
-		buffer:        l4,
-		cache:         l5,
-		swapIn:        l6,
-		swapOut:       l7,
-		blockIn:       l8,
-		blockOut:      l9,
-		interapt:      l10,
-		contextSwitch: l11,
-		cpuUser:       l12,
-		cpuSystem:     l13,
-		cpuIdle:       l14,
-		cpuIowait:     l15,
-		cpuSteal:      l16,
+	return &metrics{
+		Datetime:      nowFn(),
+		Running:       l0,
+		Blocking:      l1,
+		Swapped:       l2,
+		Free:          l3,
+		Buffer:        l4,
+		Cache:         l5,
+		SwapIn:        l6,
+		SwapOut:       l7,
+		BlockIn:       l8,
+		BlockOut:      l9,
+		Interapt:      l10,
+		ContextSwitch: l11,
+		CpuUser:       l12,
+		CpuSystem:     l13,
+		CpuIdle:       l14,
+		CpuIowait:     l15,
+		CpuSteal:      l16,
 	}, nil
 }
 
-func genVmstat() chan vmstat {
-	ch := make(chan vmstat)
+func (v *Vmstat) exec(ctx context.Context) (chan metrics, error) {
+	ch := make(chan metrics)
 
-	switch runtime.GOOS {
-	case "linux":
-		cmd := exec.Command("vmstat", "-n", "1")
-		stdout, _ := cmd.StdoutPipe()
+	var stdout io.Reader
+	if runtime.GOOS == "linux" && prodMode {
+		cmd := exec.Command("vmstat", "-n", strconv.Itoa(v.ticker))
+		stdout, _ = cmd.StdoutPipe()
 		cmd.Start()
+	} else {
+		var w *io.PipeWriter
+		stdout, w = io.Pipe()
+		ticker := time.NewTicker(time.Duration(v.ticker) * time.Second)
 
-		go func() {
-			scanner := bufio.NewScanner(stdout)
-			for scanner.Scan() {
-				line := scanner.Text()
-				if strings.Contains(line, "procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----") {
-					continue
-				}
-
-				if strings.Contains(line, "r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st") {
-					continue
-				}
-
-				vmstat, err := NewVmstat(line)
-				if err != nil {
-					panic(err)
-				}
-				ch <- *vmstat
-
-			}
-		}()
-	case "darwin":
 		go func() {
 			for {
-				vmstat, err := NewVmstat(darwinVmstatMock)
-				if err != nil {
-					panic(err)
+				select {
+				case <-ticker.C:
+					fmt.Fprintf(w, "%s\n", vmstatMock)
+				case <-ctx.Done():
+					return
 				}
-				ch <- *vmstat
 			}
 		}()
-	default:
-		panic("Unsupported OS")
 	}
 
-	return ch
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.Contains(line, "procs -----------memory---------- ---swap-- -----io---- -system-- ------cpu-----") {
+				continue
+			}
+
+			if strings.Contains(line, "r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st") {
+				continue
+			}
+
+			vmstat, err := convert(line)
+			if err != nil {
+				panic(err)
+			}
+			ch <- *vmstat
+
+		}
+	}()
+
+	return ch, nil
 }

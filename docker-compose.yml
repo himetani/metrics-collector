@@ -5,14 +5,16 @@ services:
     volumes:
       - "./bin/linux:/command"
     entrypoint: /command/metrics-collector
-        #entrypoint: tail -f /dev/null
   mysql:
     image: "mysql:5.7"
+    restart: always
+    ports:
+      - "3306:3306"
     environment:
-      - MYSQL_ROOT_PASSWORD=vmstat
-      - MYSQL_USER=vmstat
-      - MYSQL_PASSWORD=vmstat
-      - MYSQL_DATABASE=vmstat
+      - "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}"
+      - "MYSQL_USER=${MYSQL_USER}"
+      - "MYSQL_PASSWORD=${MYSQL_PASSWORD}"
+      - "MYSQL_DATABASE=${MYSQL_DATABASE}"
     volumes:
       - "./scripts/mysql/custom.cnf:/etc/mysql/conf.d/custom.cnf"
       - "./scripts/mysql/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d"
