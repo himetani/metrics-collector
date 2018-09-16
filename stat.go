@@ -36,7 +36,12 @@ func (v *Vmstat) Run(ctx context.Context) error {
 	for {
 		select {
 		case m := <-vmstatCh:
-			v.db.Insert(m)
+			err := v.db.Insert(m)
+			if err != nil {
+				fmt.Printf("[INFO] %s\n", err.Error())
+			} else {
+				fmt.Printf("[INFO] Inserted\n")
+			}
 		case <-ctx.Done():
 			fmt.Println("task.Run has been ended")
 			v.wg.Done()
@@ -168,4 +173,12 @@ func (v *Vmstat) exec(ctx context.Context) (chan metrics, error) {
 	}()
 
 	return ch, nil
+}
+
+func NewVmstat(db DB, ticker int) *Vmstat {
+	fmt.Printf("[INFO] ProdMode: %t\n", prodMode)
+	return &Vmstat{
+		db:     db,
+		ticker: ticker,
+	}
 }

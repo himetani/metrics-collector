@@ -21,7 +21,7 @@ func main() {
 
 	flag.StringVar(&username, "u", os.Getenv("MYSQL_USER"), "username")
 	flag.StringVar(&passwd, "p", os.Getenv("MYSQL_PASSWORD"), "password")
-	flag.StringVar(&uri, "uri", "localhost:3306", "uri")
+	flag.StringVar(&uri, "uri", os.Getenv("MYSQL_URL"), "uri")
 	flag.StringVar(&database, "db", os.Getenv("MYSQL_DATABASE"), "database")
 
 	c := make(chan os.Signal)
@@ -38,13 +38,14 @@ func main() {
 
 	mysql, err := NewMysql(username, passwd, uri, database)
 	if err != nil {
-		panic(err)
+		fmt.Printf("%s\n", err.Error())
+		os.Exit(1)
 	}
 
-	vmstat := &Vmstat{
-		db:     mysql,
-		ticker: 1,
-	}
+	fmt.Printf("[INFO] %s:%s@tcp(%s)/%s?parseTime=True\n", username, "*****", uri, database)
+
+	vmstat := NewVmstat(mysql, 1)
+
 	vmstat.wg.Add(1)
 
 	vmstat.Run(ctx)

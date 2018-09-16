@@ -5,6 +5,13 @@ services:
     volumes:
       - "./bin/linux:/command"
     entrypoint: /command/metrics-collector
+    depends_on:
+      - "mysql"
+    environment:
+      - "MYSQL_URL=${MYSQL_URL}"
+      - "MYSQL_USER=${MYSQL_USER}"
+      - "MYSQL_PASSWORD=${MYSQL_PASSWORD}"
+      - "MYSQL_DATABASE=${MYSQL_DATABASE}"
   mysql:
     image: "mysql:5.7"
     restart: always
