@@ -8,3 +8,4 @@ RUN go get -v -d ./... && \
 FROM ubuntu:18.04
 WORKDIR /root/
 COPY --from=0 /go/src/github.com/himetani/metrics-collector/bin/linux/metrics-collector .
+CMD ["./metrics-collector"]
