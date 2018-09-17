@@ -11,10 +11,12 @@ LDFLAGS := -ldflags="-s -w"
 SRCS    := $(shell find . -path ./vendor -prune -o -name '*.go' -print)
 
 bin/$(NAME): $(SRCS)
-	go build $(LDFLAGS) -o bin/$(NAME)
+	@echo "=> CGO_ENABLED=0 go build  $(LDFLAGS) -o bin/$(NAME)"
+	CGO_ENABLED=0 go build  $(LDFLAGS) -o bin/$(NAME)
 
 bin/linux/$(NAME): $(SRCS)
-	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o bin/linux/$(NAME)
+	@echo "=> GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build $(LDFLAGS) -o bin/linux/$(NAME)"
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build $(LDFLAGS) -o bin/linux/$(NAME)
 
 $$GOPATH/bin/$(NAME):
 	go install $(LDFLAGS)

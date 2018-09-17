@@ -1,10 +1,8 @@
 version: '3'
 services:
   ubuntu:
-    image: "ubuntu:18.04"
-    volumes:
-      - "./bin/linux:/command"
-    entrypoint: /command/metrics-collector
+    build: .
+    entrypoint: /root/metrics-collector
     depends_on:
       - "mysql"
     environment:
