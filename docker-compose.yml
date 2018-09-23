@@ -5,6 +5,8 @@ services:
     entrypoint: /root/metrics-collector
     depends_on:
       - "mysql"
+    ports:
+      - "5000:5000"
     environment:
       - "MYSQL_URL=mysql:3306"
       - "MYSQL_USER=${MYSQL_USER}"
