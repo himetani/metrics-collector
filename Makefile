@@ -10,22 +10,25 @@ LDFLAGS := -ldflags="-s -w"
 
 SRCS    := $(shell find . -path ./vendor -prune -o -name '*.go' -print)
 
-bin/$(NAME): $(SRCS)
-	@echo "=> CGO_ENABLED=0 go build  $(LDFLAGS) -o bin/$(NAME)"
-	CGO_ENABLED=0 go build  $(LDFLAGS) -o bin/$(NAME)
+cmd/mc/mc: $(SRCS)
+	@echo "=> cd cmd/mc;GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build $(LDFLAGS) ./..."
+	@cd cmd/mc; GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build $(LDFLAGS) ./...
 
-bin/linux/$(NAME): $(SRCS)
-	@echo "=> GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build $(LDFLAGS) -o bin/linux/$(NAME)"
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build $(LDFLAGS) -o bin/linux/$(NAME)
+cmd/mc/mcweb: $(SRCS)
+	@echo "=> cd cmd/mc;GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build $(LDFLAGS) ./..."
+	@cd cmd/mcweb; GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build $(LDFLAGS) ./...
 
-$$GOPATH/bin/$(NAME):
+$$GOPATH/bin/mc:
 	go install $(LDFLAGS)
 
-build: bin/$(NAME)
+$$GOPATH/bin/mcweb:
+	go install $(LDFLAGS)
 
-build-linux: bin/linux/$(NAME)
+build-mc: cmd/mc/mc
 
-install: $$GOPATH/bin/$(NAME)
+build-mcweb: cmd/mc/mcweb
+
+install: $$GOPATH/bin/mc $$GOPATH/bin/mcweb
 
 clean:
 	rm -rf bin/*
